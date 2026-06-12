@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0b0d0f">
+    <meta name="description" content="PWA para registrar pesos e historial de rutina torso pierna.">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Loop Gym">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no">
+    <title>Loop Gym</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="icon" href="icons/icon-192.png">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow" id="todayLabel">Hoy</p>
+          <h1>Loop Gym</h1>
+        </div>
+        <button class="icon-button install-button" id="installButton" type="button" hidden aria-label="Instalar app">
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M12 3v12m0 0 4-4m-4 4-4-4"></path>
+            <path d="M5 19h14"></path>
+          </svg>
+        </button>
+      </header>
+
+      <main>
+        <section class="view active" id="view-today" aria-labelledby="todayTitle">
+          <div class="hero-panel">
+            <div>
+              <span class="day-pill" id="routineDay">Día</span>
+              <h2 id="todayTitle">Entrenamiento</h2>
+              <p id="routineMeta">Series y repeticiones</p>
+            </div>
+            <button class="ghost-button" id="jumpWeekButton" type="button">Semana</button>
+          </div>
+
+          <form id="workoutForm" class="exercise-list" autocomplete="off"></form>
+
+          <div class="empty-state" id="restState" hidden>
+            <h2>Descanso</h2>
+            <p>Hoy no hay ejercicios cargados en la rutina.</p>
+            <button class="primary-button" data-nav-target="week" type="button">Ver semana</button>
+          </div>
+        </section>
+
+        <section class="view" id="view-week" aria-labelledby="weekTitle">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Calendario</p>
+              <h2 id="weekTitle">Rutina semanal</h2>
+            </div>
+            <button class="icon-text-button" id="calendarButton" type="button">
+              <svg aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M8 2v4m8-4v4"></path>
+                <path d="M3 10h18"></path>
+                <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+              </svg>
+              .ics
+            </button>
+          </div>
+          <div class="week-grid" id="weekGrid"></div>
+        </section>
+
+        <section class="view" id="view-history" aria-labelledby="historyTitle">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Evolución</p>
+              <h2 id="historyTitle">Histórico de pesos</h2>
+            </div>
+            <select id="exerciseSelect" aria-label="Elegir ejercicio"></select>
+          </div>
+
+          <div class="stats-grid" id="statsGrid"></div>
+          <div class="chart-wrap">
+            <canvas id="historyChart" width="900" height="360" aria-label="Gráfico de evolución de pesos"></canvas>
+          </div>
+          <div class="history-list" id="historyList"></div>
+        </section>
+
+        <section class="view" id="view-data" aria-labelledby="dataTitle">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Datos</p>
+              <h2 id="dataTitle">Respaldo local</h2>
+            </div>
+          </div>
+          <div class="data-actions">
+            <button class="primary-button" id="exportButton" type="button">Exportar JSON</button>
+            <label class="file-button">
+              Importar JSON
+              <input id="importInput" type="file" accept="application/json">
+            </label>
+            <button class="danger-button" id="clearButton" type="button">Borrar historial</button>
+          </div>
+          <p class="storage-note" id="storageNote"></p>
+        </section>
+      </main>
+
+      <nav class="bottom-nav" aria-label="Navegación principal">
+        <button class="nav-button active" data-nav-target="today" type="button" aria-label="Hoy">
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M8 2v4m8-4v4"></path>
+            <path d="M3 10h18"></path>
+            <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+            <path d="M8 15h4"></path>
+          </svg>
+          <span>Hoy</span>
+        </button>
+        <button class="nav-button" data-nav-target="week" type="button" aria-label="Semana">
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M4 6h16"></path>
+            <path d="M4 12h16"></path>
+            <path d="M4 18h16"></path>
+          </svg>
+          <span>Semana</span>
+        </button>
+        <button class="nav-button" data-nav-target="history" type="button" aria-label="Historial">
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M4 19V5"></path>
+            <path d="M4 19h16"></path>
+            <path d="m7 15 4-4 3 3 5-7"></path>
+          </svg>
+          <span>Historial</span>
+        </button>
+        <button class="nav-button" data-nav-target="data" type="button" aria-label="Datos">
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="M12 2v20"></path>
+            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6"></path>
+          </svg>
+          <span>Datos</span>
+        </button>
+      </nav>
+
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    </div>
+
+    <script src="app.js" defer></script>
+  </body>
+</html>
