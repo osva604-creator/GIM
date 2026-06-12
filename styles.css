@@ -576,6 +576,30 @@ h3 {
   pointer-events: none;
 }
 
+/* Estilos banner de instalación */
+.install-banner {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: 80px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(180deg, #121416, #0b0d0f);
+  border: 1px solid rgba(255,255,255,0.04);
+  padding: 10px;
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(2,6,23,0.6);
+  z-index: 1000;
+}
+.install-banner .install-icon{
+  width: 48px;
+  height: 48px;
+  filter: invert(1) brightness(2);
+}
+.install-banner .install-text p{margin:0;font-size:0.9rem;color:#c7ced6}
+.install-banner .install-actions{margin-left:auto;display:flex;gap:8px}
+
 .toast.show {
   opacity: 1;
   transform: translateY(0);

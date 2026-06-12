@@ -87,6 +87,9 @@ function cacheDom() {
   dom.storageNote = document.querySelector("#storageNote");
   dom.toast = document.querySelector("#toast");
   dom.installButton = document.querySelector("#installButton");
+  dom.installBanner = document.querySelector("#installBanner");
+  dom.installConfirm = document.querySelector("#installConfirm");
+  dom.installDecline = document.querySelector("#installDecline");
   dom.jumpWeekButton = document.querySelector("#jumpWeekButton");
 }
 
@@ -103,11 +106,37 @@ function bindEvents() {
   dom.clearButton.addEventListener("click", clearHistory);
   dom.installButton.addEventListener("click", installApp);
 
+  if (dom.installConfirm) dom.installConfirm.addEventListener("click", installApp);
+  if (dom.installDecline) dom.installDecline.addEventListener("click", () => { if (dom.installBanner) dom.installBanner.hidden = true; });
+
   window.addEventListener("beforeinstallprompt", (event) => {
     event.preventDefault();
     deferredInstallPrompt = event;
     dom.installButton.hidden = false;
+    if (dom.installBanner) dom.installBanner.hidden = false;
   });
+}
+
+async function installApp() {
+  if (deferredInstallPrompt) {
+    if (dom.installBanner) dom.installBanner.hidden = true;
+    try {
+      deferredInstallPrompt.prompt();
+      const choice = await deferredInstallPrompt.userChoice;
+      if (choice && choice.outcome === "accepted") {
+        showToast("Instalación aceptada.");
+      } else {
+        showToast("Instalación cancelada.");
+      }
+    } catch (err) {
+      console.warn("Error mostrando prompt de instalación", err);
+      showToast("No se pudo iniciar la instalación.");
+    }
+    deferredInstallPrompt = null;
+    if (dom.installButton) dom.installButton.hidden = true;
+  } else {
+    showToast("Instalación no disponible.");
+  }
 }
 
 function hydrate() {

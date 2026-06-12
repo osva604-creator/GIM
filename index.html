@@ -140,6 +140,19 @@
       </nav>
 
       <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    
+    <!-- Banner de instalación personalizado -->
+    <div class="install-banner" id="installBanner" hidden>
+      <img src="icons/weight.svg" alt="Pesa" class="install-icon">
+      <div class="install-text">
+        <strong>Instalar Loop Gym</strong>
+        <p>Agregar la app a la pantalla de inicio para un acceso rápido.</p>
+      </div>
+      <div class="install-actions">
+        <button class="ghost-button" id="installDecline">Cerrar</button>
+        <button class="primary-button" id="installConfirm">Instalar</button>
+      </div>
+    </div>
     </div>
 
     <script src="app.js" defer></script>
