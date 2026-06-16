@@ -55,15 +55,37 @@ const routine = {
 };
 
 const dom = {};
-let store = loadStore();
+let store = { version: CURRENT_VERSION, entries: [] };
 let selectedDate = new Date();
 let deferredInstallPrompt = null;
 
 document.addEventListener("DOMContentLoaded", () => {
   cacheDom();
   bindEvents();
-  hydrate();
-  registerServiceWorker();
+  // Inicializar almacenamiento (IndexedDB) y migrar desde localStorage si aplica
+  (async () => {
+    try {
+      // solicitar persistencia para mejorar retención en móviles
+      const persisted = await storage.requestPersist();
+      if (persisted) console.debug("Storage: persistence granted");
+      // intentar cargar desde IndexedDB
+      const data = await storage.get();
+      if (data && data.version === CURRENT_VERSION && Array.isArray(data.entries)) {
+        store = data;
+      } else {
+        // intentar migrar desde localStorage
+        const migrated = await storage.migrateFromLocalStorage(STORAGE_KEY);
+        if (migrated && migrated.version === CURRENT_VERSION && Array.isArray(migrated.entries)) {
+          store = migrated;
+        }
+      }
+    } catch (err) {
+      console.warn("Storage init failed", err);
+    } finally {
+      hydrate();
+      registerServiceWorker();
+    }
+  })();
 });
 
 function cacheDom() {
@@ -146,20 +168,32 @@ function hydrate() {
 }
 
 function loadStore() {
+  // mantenida por compatibilidad; ahora usamos IndexedDB vía el módulo storage
   try {
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (stored?.version === CURRENT_VERSION && Array.isArray(stored.entries)) {
-      return stored;
-    }
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { version: CURRENT_VERSION, entries: [] };
+    const parsed = JSON.parse(raw);
+    return parsed;
   } catch (error) {
     console.warn("No se pudo leer el historial local", error);
+    return { version: CURRENT_VERSION, entries: [] };
   }
-
-  return { version: CURRENT_VERSION, entries: [] };
 }
 
 function saveStore() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  try {
+    // guardar en IndexedDB si está disponible
+    if (typeof storage !== "undefined" && storage && typeof storage.set === "function") {
+      storage.set(store).catch((e) => console.warn("No se pudo escribir en IndexedDB", e));
+    }
+  } catch (e) {
+    // fallback a localStorage
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    } catch (err) {
+      console.warn("No se pudo guardar en localStorage", err);
+    }
+  }
   renderStorageNote();
 }
 
