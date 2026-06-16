@@ -58,6 +58,9 @@ const dom = {};
 let store = { version: CURRENT_VERSION, entries: [] };
 let selectedDate = new Date();
 let deferredInstallPrompt = null;
+let installBannerTimer = null;
+let installBannerHideTimer = null;
+const INSTALLED_FLAG = "loopGym.installed.v1";
 
 document.addEventListener("DOMContentLoaded", () => {
   cacheDom();
@@ -133,7 +136,32 @@ function bindEvents() {
     event.preventDefault();
     deferredInstallPrompt = event;
     dom.installButton.hidden = false;
-    if (dom.installBanner) dom.installBanner.hidden = false;
+
+    // no mostrar el banner si ya fue instalada o el usuario ya la instaló antes
+    if (localStorage.getItem(INSTALLED_FLAG)) return;
+
+    // limpiar timers previos
+    if (installBannerTimer) { clearTimeout(installBannerTimer); installBannerTimer = null; }
+    if (installBannerHideTimer) { clearTimeout(installBannerHideTimer); installBannerHideTimer = null; }
+
+    // mostrar el banner 2s después, mantenerlo visible 2s y ocultarlo
+    installBannerTimer = setTimeout(() => {
+      if (dom.installBanner) dom.installBanner.hidden = false;
+      installBannerHideTimer = setTimeout(() => {
+        if (dom.installBanner) dom.installBanner.hidden = true;
+      }, 2000);
+    }, 2000);
+  });
+
+  // Cuando la app queda instalada (evento del navegador), evitar volver a mostrar el banner
+  window.addEventListener("appinstalled", () => {
+    try { localStorage.setItem(INSTALLED_FLAG, "1"); } catch (e) {}
+    deferredInstallPrompt = null;
+    if (installBannerTimer) { clearTimeout(installBannerTimer); installBannerTimer = null; }
+    if (installBannerHideTimer) { clearTimeout(installBannerHideTimer); installBannerHideTimer = null; }
+    if (dom.installBanner) dom.installBanner.hidden = true;
+    if (dom.installButton) dom.installButton.hidden = true;
+    showToast("App instalada.");
   });
 }
 
@@ -145,6 +173,7 @@ async function installApp() {
       const choice = await deferredInstallPrompt.userChoice;
       if (choice && choice.outcome === "accepted") {
         showToast("Instalación aceptada.");
+        try { localStorage.setItem(INSTALLED_FLAG, "1"); } catch (e) {}
       } else {
         showToast("Instalación cancelada.");
       }
@@ -154,6 +183,8 @@ async function installApp() {
     }
     deferredInstallPrompt = null;
     if (dom.installButton) dom.installButton.hidden = true;
+    if (installBannerTimer) { clearTimeout(installBannerTimer); installBannerTimer = null; }
+    if (installBannerHideTimer) { clearTimeout(installBannerHideTimer); installBannerHideTimer = null; }
   } else {
     showToast("Instalación no disponible.");
   }
