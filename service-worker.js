@@ -2,11 +2,12 @@ const CACHE_NAME = "loop-gym-v2";
 const ASSETS = [
   "./",
   "./index.html",
-  "./styles.css",
-  "./app.js",
+  "./css/styles.css",
+  "./js/app.js",
   "./manifest.webmanifest",
   "./icons/icon-192.png",
-  "./icons/icon-512.png"
+  "./icons/icon-512.png",
+  "./service-worker.js"
 ];
 
 self.addEventListener("install", (event) => {

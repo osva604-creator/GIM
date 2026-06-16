@@ -675,14 +675,6 @@ function showView(target) {
   }
 }
 
-async function installApp() {
-  if (!deferredInstallPrompt) return;
-  deferredInstallPrompt.prompt();
-  await deferredInstallPrompt.userChoice;
-  deferredInstallPrompt = null;
-  dom.installButton.hidden = true;
-}
-
 function showToast(message) {
   dom.toast.textContent = message;
   dom.toast.classList.add("show");
