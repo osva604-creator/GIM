@@ -19,6 +19,9 @@
   --radius: 8px;
 }
 
+/* Forzar comportamiento de atributo hidden para asegurar ocultamiento en todos los navegadores */
+[hidden] { display: none !important; }
+
 * {
   box-sizing: border-box;
 }
