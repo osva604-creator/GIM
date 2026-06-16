@@ -54,8 +54,6 @@ const routine = {
   }
 };
 
-// (Imágenes eliminadas por solicitud)
-
 const dom = {};
 let store = loadStore();
 let selectedDate = new Date();
