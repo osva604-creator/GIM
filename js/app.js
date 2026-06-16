@@ -89,6 +89,17 @@ document.addEventListener("DOMContentLoaded", () => {
       registerServiceWorker();
     }
   })();
+  // Fallback: si la app no está en modo standalone y no fue instalada, mostrar banner 2s después
+  const isStandalone = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  if (!isStandalone && !localStorage.getItem(INSTALLED_FLAG)) {
+    setTimeout(() => {
+      // si el banner ya fue mostrado por beforeinstallprompt, no hacemos nada
+      if (dom.installBanner && dom.installBanner.hidden) {
+        dom.installBanner.hidden = false;
+        setTimeout(() => { if (dom.installBanner) dom.installBanner.hidden = true; }, 2000);
+      }
+    }, 2000);
+  }
 });
 
 function cacheDom() {
@@ -114,6 +125,31 @@ function cacheDom() {
   dom.installConfirm = document.querySelector("#installConfirm");
   dom.installDecline = document.querySelector("#installDecline");
   dom.jumpWeekButton = document.querySelector("#jumpWeekButton");
+}
+
+// Mostrar banner inmediatamente (útil para depuración y pruebas)
+function showInstallBannerNow() {
+  if (localStorage.getItem(INSTALLED_FLAG)) return;
+  if (installBannerTimer) { clearTimeout(installBannerTimer); installBannerTimer = null; }
+  if (installBannerHideTimer) { clearTimeout(installBannerHideTimer); installBannerHideTimer = null; }
+  if (dom.installBanner) dom.installBanner.hidden = false;
+  installBannerHideTimer = setTimeout(() => {
+    if (dom.installBanner) dom.installBanner.hidden = true;
+  }, 2000);
+}
+
+// Limpia caches y unregister service workers, luego muestra banner (para forzar actualización)
+async function debugClearCachesAndShowBanner() {
+  if ('serviceWorker' in navigator) {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    await Promise.all(regs.map(r => r.unregister()));
+  }
+  if (window.caches) {
+    const keys = await caches.keys();
+    await Promise.all(keys.map(k => caches.delete(k)));
+  }
+  // small delay then show
+  setTimeout(() => showInstallBannerNow(), 250);
 }
 
 function bindEvents() {
@@ -165,6 +201,25 @@ function bindEvents() {
   });
 }
 
+// Crear botón debug si se pasa ?debug en la URL
+if (location.search.includes("debug")) {
+  document.addEventListener("DOMContentLoaded", () => {
+    const btn = document.createElement("button");
+    btn.textContent = "Debug: banner";
+    btn.style.position = "fixed";
+    btn.style.left = "8px";
+    btn.style.bottom = "8px";
+    btn.style.zIndex = 9999;
+    btn.style.padding = "8px 10px";
+    btn.style.borderRadius = "8px";
+    btn.style.background = "#ff6748";
+    btn.style.color = "#0b0d0f";
+    btn.style.border = "none";
+    btn.addEventListener("click", () => debugClearCachesAndShowBanner());
+    document.body.appendChild(btn);
+  });
+}
+
 async function installApp() {
   if (deferredInstallPrompt) {
     if (dom.installBanner) dom.installBanner.hidden = true;
@@ -186,7 +241,18 @@ async function installApp() {
     if (installBannerTimer) { clearTimeout(installBannerTimer); installBannerTimer = null; }
     if (installBannerHideTimer) { clearTimeout(installBannerHideTimer); installBannerHideTimer = null; }
   } else {
-    showToast("Instalación no disponible.");
+    // No hay prompt disponible: mostrar instrucciones según plataforma y ocultar banner
+    const isiOS = /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+    if (isiOS) {
+      showToast("En iOS: usar 'Compartir → Agregar a pantalla de inicio'.");
+    } else {
+      showToast("Instalación no disponible desde aquí. Comprueba el menú del navegador.");
+    }
+    // ocultar banner tras 2s
+    if (dom.installBanner) dom.installBanner.hidden = true;
+    setTimeout(() => {
+      if (dom.installBanner) dom.installBanner.hidden = true;
+    }, 2000);
   }
 }
 
