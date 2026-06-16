@@ -1,4 +1,4 @@
-const CACHE_NAME = "loop-gym-v2";
+const CACHE_NAME = "loop-gym-v3";
 const ASSETS = [
   "./",
   "./index.html",
