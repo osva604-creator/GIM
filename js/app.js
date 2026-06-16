@@ -138,6 +138,10 @@ function showInstallBannerNow() {
   }, 2000);
 }
 
+// exponer funciones útiles para depuración desde la consola
+window.showInstallBannerNow = showInstallBannerNow;
+window.debugClearCachesAndShowBanner = debugClearCachesAndShowBanner;
+
 // Limpia caches y unregister service workers, luego muestra banner (para forzar actualización)
 async function debugClearCachesAndShowBanner() {
   if ('serviceWorker' in navigator) {
@@ -169,6 +173,7 @@ function bindEvents() {
   if (dom.installDecline) dom.installDecline.addEventListener("click", () => { if (dom.installBanner) dom.installBanner.hidden = true; });
 
   window.addEventListener("beforeinstallprompt", (event) => {
+    console.debug("beforeinstallprompt received", event);
     event.preventDefault();
     deferredInstallPrompt = event;
     dom.installButton.hidden = false;
@@ -181,9 +186,12 @@ function bindEvents() {
     if (installBannerHideTimer) { clearTimeout(installBannerHideTimer); installBannerHideTimer = null; }
 
     // mostrar el banner 2s después, mantenerlo visible 2s y ocultarlo
+    console.debug("scheduling install banner in 2000ms");
     installBannerTimer = setTimeout(() => {
+      console.debug("showing install banner");
       if (dom.installBanner) dom.installBanner.hidden = false;
       installBannerHideTimer = setTimeout(() => {
+        console.debug("hiding install banner (auto)");
         if (dom.installBanner) dom.installBanner.hidden = true;
       }, 2000);
     }, 2000);
@@ -191,6 +199,7 @@ function bindEvents() {
 
   // Cuando la app queda instalada (evento del navegador), evitar volver a mostrar el banner
   window.addEventListener("appinstalled", () => {
+    console.debug("appinstalled event fired");
     try { localStorage.setItem(INSTALLED_FLAG, "1"); } catch (e) {}
     deferredInstallPrompt = null;
     if (installBannerTimer) { clearTimeout(installBannerTimer); installBannerTimer = null; }
