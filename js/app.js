@@ -61,6 +61,37 @@ let deferredInstallPrompt = null;
 let installBannerTimer = null;
 let installBannerHideTimer = null;
 const INSTALLED_FLAG = "loopGym.installed.v1";
+const INSTALL_DISMISS_KEY = "loopGym.installDismissedAt.v1";
+const DISMISS_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 horas
+
+function shouldShowInstallBanner() {
+  try {
+    if (localStorage.getItem(INSTALLED_FLAG)) return false;
+    const dismissed = Number(localStorage.getItem(INSTALL_DISMISS_KEY) || 0);
+    if (Date.now() - dismissed < DISMISS_COOLDOWN_MS) return false;
+  } catch (e) {
+    // si localStorage falla, preferimos no bloquear la UX
+  }
+  return true;
+}
+
+function detectStandaloneAndMarkInstalled() {
+  try {
+    const isStandaloneNow = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+    if (isStandaloneNow) {
+      try { localStorage.setItem(INSTALLED_FLAG, "1"); } catch (e) {}
+      try { localStorage.removeItem(INSTALL_DISMISS_KEY); } catch (e) {}
+      deferredInstallPrompt = null;
+      if (installBannerTimer) { clearTimeout(installBannerTimer); installBannerTimer = null; }
+      if (installBannerHideTimer) { clearTimeout(installBannerHideTimer); installBannerHideTimer = null; }
+      if (dom.installBanner) dom.installBanner.hidden = true;
+      if (dom.installButton) dom.installButton.hidden = true;
+      console.debug("Detected standalone mode; marked installed and hid banner");
+    }
+  } catch (err) {
+    console.debug("detectStandaloneAndMarkInstalled: error", err);
+  }
+}
 
 document.addEventListener("DOMContentLoaded", () => {
   cacheDom();
@@ -91,11 +122,35 @@ document.addEventListener("DOMContentLoaded", () => {
   })();
   // Fallback: si la app no está en modo standalone y no fue instalada, mostrar banner 2s después
   const isStandalone = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  // Si estamos en standalone, marcar como instalada para evitar que el banner vuelva a aparecer
+  if (isStandalone) {
+    try { localStorage.setItem(INSTALLED_FLAG, "1"); } catch (e) {}
+    if (dom.installBanner) dom.installBanner.hidden = true;
+    if (dom.installButton) dom.installButton.hidden = true;
+  }
+  // detectar cambios en el modo de display y al volver a visibilidad
+  try {
+    if (window.matchMedia) {
+      const mq = window.matchMedia('(display-mode: standalone)');
+      if (typeof mq.addEventListener === 'function') {
+        mq.addEventListener('change', (e) => { if (e.matches) detectStandaloneAndMarkInstalled(); });
+      } else if (typeof mq.addListener === 'function') {
+        mq.addListener((e) => { if (e.matches) detectStandaloneAndMarkInstalled(); });
+      }
+    }
+  } catch (e) {}
+
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') detectStandaloneAndMarkInstalled(); });
+
+  // chequeo inicial adicional
+  detectStandaloneAndMarkInstalled();
   if (!isStandalone && !localStorage.getItem(INSTALLED_FLAG)) {
     setTimeout(() => {
       // si el banner ya fue mostrado por beforeinstallprompt, no hacemos nada
+      if (!shouldShowInstallBanner()) return;
       if (dom.installBanner && dom.installBanner.hidden) {
         dom.installBanner.hidden = false;
+        // auto-ocultar tras 2s
         setTimeout(() => { if (dom.installBanner) dom.installBanner.hidden = true; }, 2000);
       }
     }, 2000);
@@ -129,9 +184,10 @@ function cacheDom() {
 
 // Mostrar banner inmediatamente (útil para depuración y pruebas)
 function showInstallBannerNow() {
-  if (localStorage.getItem(INSTALLED_FLAG)) return;
+  try { if (localStorage.getItem(INSTALLED_FLAG)) return; } catch (e) {}
   if (installBannerTimer) { clearTimeout(installBannerTimer); installBannerTimer = null; }
   if (installBannerHideTimer) { clearTimeout(installBannerHideTimer); installBannerHideTimer = null; }
+  if (!shouldShowInstallBanner()) return;
   if (dom.installBanner) dom.installBanner.hidden = false;
   installBannerHideTimer = setTimeout(() => {
     if (dom.installBanner) dom.installBanner.hidden = true;
@@ -170,7 +226,13 @@ function bindEvents() {
   dom.installButton.addEventListener("click", installApp);
 
   if (dom.installConfirm) dom.installConfirm.addEventListener("click", installApp);
-  if (dom.installDecline) dom.installDecline.addEventListener("click", () => { if (dom.installBanner) dom.installBanner.hidden = true; });
+  if (dom.installDecline) dom.installDecline.addEventListener("click", () => {
+    // marcar dismissal para no volver a mostrar inmediatamente y limpiar timers
+    try { localStorage.setItem(INSTALL_DISMISS_KEY, String(Date.now())); } catch (e) {}
+    if (installBannerTimer) { clearTimeout(installBannerTimer); installBannerTimer = null; }
+    if (installBannerHideTimer) { clearTimeout(installBannerHideTimer); installBannerHideTimer = null; }
+    if (dom.installBanner) dom.installBanner.hidden = true;
+  });
 
   window.addEventListener("beforeinstallprompt", (event) => {
     console.debug("beforeinstallprompt received", event);
@@ -187,20 +249,23 @@ function bindEvents() {
 
     // mostrar el banner 2s después, mantenerlo visible 2s y ocultarlo
     console.debug("scheduling install banner in 2000ms");
-    installBannerTimer = setTimeout(() => {
-      console.debug("showing install banner");
-      if (dom.installBanner) dom.installBanner.hidden = false;
-      installBannerHideTimer = setTimeout(() => {
-        console.debug("hiding install banner (auto)");
-        if (dom.installBanner) dom.installBanner.hidden = true;
+    if (shouldShowInstallBanner()) {
+      installBannerTimer = setTimeout(() => {
+        console.debug("showing install banner");
+        if (dom.installBanner) dom.installBanner.hidden = false;
+        installBannerHideTimer = setTimeout(() => {
+          console.debug("hiding install banner (auto)");
+          if (dom.installBanner) dom.installBanner.hidden = true;
+        }, 2000);
       }, 2000);
-    }, 2000);
+    }
   });
 
   // Cuando la app queda instalada (evento del navegador), evitar volver a mostrar el banner
   window.addEventListener("appinstalled", () => {
     console.debug("appinstalled event fired");
     try { localStorage.setItem(INSTALLED_FLAG, "1"); } catch (e) {}
+    try { localStorage.removeItem(INSTALL_DISMISS_KEY); } catch (e) {}
     deferredInstallPrompt = null;
     if (installBannerTimer) { clearTimeout(installBannerTimer); installBannerTimer = null; }
     if (installBannerHideTimer) { clearTimeout(installBannerHideTimer); installBannerHideTimer = null; }
